@@ -7,6 +7,7 @@
 #include <avr/interrupt.h>
 #include "config.h"
 #include "sampler.h"
+#include "debug.h"
 
 // sample buffer. this is written into by an interrupt handler serviced by the ADC interrupt.
 byte samples[SAMP_BUFF_LEN] __attribute__((__aligned__(256))); // TODO: not sure if this alignment is useful
@@ -48,7 +49,7 @@ void setup_sampler(uint16_t timer_counter) {
   TCCR1A = 0; // set entire TCCR1A register to 0
   TCCR1B = 0; // same for TCCR1B
   TCNT1  = 109; // initialize counter value to 0
-  // set compare match register correctly (oassed in)
+  // set compare match register correctly (passed in)
   OCR1A = timer_counter;
   // turn on CTC mode
   TCCR1B |= (1 << WGM12);
@@ -67,9 +68,7 @@ void setup_sampler(uint16_t timer_counter) {
 
 ISR(TIMER1_COMPA_vect)
 {
-#ifdef DEBUG_SAMPLE_RATE
-  DEBUG_SAMPLE_RATE_PORT |= (1 << DEBUG_SAMPLE_RATE_PIN);
-#endif
+  DEBUG_SAMPLE_RATE_HIGH();
 
   ADCSRA |= (1 << ADSC); // trigger next analog sample.
   
@@ -80,8 +79,6 @@ ISR(TIMER1_COMPA_vect)
   volatile byte* the_sample = samples + current_sample;
   *the_sample = sample;
   new_sample_count++;
-  
-#ifdef DEBUG_SAMPLE_RATE
-  DEBUG_SAMPLE_RATE_PORT &= ~(1 << DEBUG_SAMPLE_RATE_PIN);
-#endif
+
+  DEBUG_SAMPLE_RATE_LOW();
 }

@@ -57,7 +57,9 @@ void debug_loop() {
     }
 
     while(button_pin.read()) {
+      DEBUG_FRAME_RATE_HIGH();
       delay(1);
+      DEBUG_FRAME_RATE_LOW();
     }    
   }
 }
