@@ -26,7 +26,7 @@ void setup_sampler(uint16_t timer_counter) {
   ADCSRB = 0;             // clear ADCSRB register
   ADMUX |= (AUDIO_INPUT_PIN & 0x07)     // set A0 analog input pin
         |  (1 << REFS0)   // set reference voltage to internal 1.1v (gives a signal boost for audio).
-        |  (1 << REFS1)   // set reference voltage to internal 1.1v (gives a signal boost for audio).
+        |  (0 << REFS1)   // set reference voltage to internal 1.1v (gives a signal boost for audio).
         |  (1 << ADLAR)   // left align ADC value to 8 bits from ADCH register
   ;
 

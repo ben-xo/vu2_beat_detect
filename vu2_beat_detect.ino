@@ -13,6 +13,8 @@
 #include "buttons.h"
 #include "debug.h"
 
+#include "PeckettIIR.h"
+
 DigitalPin<BUTTON_PIN> button_pin;
 
 DigitalPin<TEMPO_PIN>  tempo_pin;
@@ -33,6 +35,8 @@ void setup() {
 #endif  
 
   //setup_sampler((F_CPU / (1 * desired_sample_frequency) - 1));
+
+//   Serial.begin(2000000);
 }
 
 void loop() {
@@ -42,5 +46,56 @@ void loop() {
     debug_loop();
   }
 
+  algorithm_loop();  
+}
+
+/*****/
+
+typedef void (*BeatDetectSetupList[])();
+typedef void (*BeatDetectList[])(uint16_t val, DigitalPin<BEAT_PIN> beat_pin);
+BeatDetectSetupList gBeatDetectAlgorithmSetup = { PeckettIIRSetup };
+BeatDetectList gBeatDetectAlgorithm = { PeckettIIR };
+uint8_t current_mode = 0;
+
+#define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
+
+uint8_t next_algorithm()
+{
+  // add one to the current pattern number, and wrap around at the end
+  return current_mode = (current_mode + 1) % ARRAY_SIZE( gBeatDetectAlgorithm );
+}
+
+
+void algorithm_loop() {
+  uint8_t mode = 0;
+
+  gBeatDetectAlgorithmSetup[mode](); // gotta start somewhere
   
+  while(true) {
+
+    if(was_button_pressed(button_pin)) {
+      next_algorithm();
+    }
+  
+    if(mode != current_mode) {
+      mode = current_mode;
+      portb_val = mode;
+      gBeatDetectAlgorithmSetup[mode]();
+    }
+
+    if(new_sample_count) {
+        cli();
+        uint8_t sample_ptr = current_sample;
+        new_sample_count--;
+        uint8_t val = samples[sample_ptr];
+        sei();
+
+//        Serial.println(val);
+        
+        DEBUG_FRAME_RATE_HIGH();
+        gBeatDetectAlgorithm[mode]((uint16_t)(val<<2), beat_pin);
+        DEBUG_FRAME_RATE_LOW();
+    }
+    
+  }
 }
