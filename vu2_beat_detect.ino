@@ -15,6 +15,7 @@
 
 #include "PeckettIIR.h"
 #include "PeckettIIRFixedPoint.h"
+#include "PeckettIIRFixedPointUnrolled.h"
 
 DigitalPin<BUTTON_PIN> button_pin;
 
@@ -53,7 +54,7 @@ void loop() {
 /*****/
 
 typedef void (*BeatDetectSetupList[])();
-typedef void (*BeatDetectList[])(uint16_t val, DigitalPin<BEAT_PIN> beat_pin);
+typedef void (*BeatDetectList[])(uint8_t val, DigitalPin<BEAT_PIN> beat_pin);
 BeatDetectSetupList gBeatDetectAlgorithmSetup = { PeckettIIRSetup, PeckettIIRFixedPointSetup };
 BeatDetectList gBeatDetectAlgorithm = { PeckettIIR, PeckettIIRFixedPoint };
 uint8_t current_mode = 0;
