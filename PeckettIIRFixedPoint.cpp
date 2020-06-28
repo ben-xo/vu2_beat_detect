@@ -6,7 +6,7 @@
 #include "config.h"
 #include "sampler.h"
 
-#include "PeckettIIR.h"
+#include "PeckettIIRFixedPoint.h"
 
 static int16_t thresh_f = 3000;
 
@@ -16,14 +16,14 @@ static int16_t thresh_f = 3000;
 // 20 - 200hz Single Pole Bandpass IIR Filter
 // INPUT: 8-bit signed sample
 // OUTPUT: 16 bit signed filtered sample
-int16_t bassFilter(int16_t sample) {
+static int16_t bassFilter(int8_t sample) {
     const int32_t Qin = 16; // sample was only sampled with 8 bit precision, so we have 24 bits to play with after the point - but need some headroom too.
     const int32_t Qhalf = 8; // do some of the maths with headroom (thanks arithmetic) 
     const int32_t Qout = 4; // return higher precision, and hope the output hasn't clipped.
     const int32_t alpha1 = (-0.7960060012f * (1L << Qin));
     const int32_t alpha2 = (1.7903124146f * (1L << Qin));
   
-    static int16_t xv[3] = {0L,0L,0L};
+    static int8_t xv[3] = {0L,0L,0L};
     static int32_t yv[3] = {0L,0L,0L};
     xv[0] = xv[1];
     xv[1] = xv[2]; 
@@ -47,10 +47,9 @@ int16_t bassFilter(int16_t sample) {
 // 10hz Single Pole Lowpass IIR Filter
 // INPUT: 16-bit signed sample
 // OUTPUT: 16 bit signed filtered sample
-int16_t envelopeFilter(int16_t sample) { //10hz low pass
+static int16_t envelopeFilter(int16_t sample) { //10hz low pass
     const int32_t Qin = 16; // sample was only sampled with 8 bit precision, so we have 24 bits to play with after the point - but need some headroom too.
     const int32_t Qhalf = 8; // do some of the maths with headroom (thanks arithmetic) 
-    const int32_t Qout = 4; // return higher precision, and hope the output hasn't clipped.
     const int32_t alpha3 = (0.9875119299f * (1L << Qin));
 
     static int16_t xv[2] = {0,0};
@@ -79,7 +78,7 @@ int16_t envelopeFilter(int16_t sample) { //10hz low pass
 }
 
 // 1.7 - 3.0hz Single Pole Bandpass IIR Filter
-int16_t beatFilter(int16_t sample) {
+static int16_t beatFilter(int16_t sample) {
     const int32_t Qin = 8;
     const int32_t Qhalf = 4;
     const int32_t Qout = 2;
@@ -96,7 +95,7 @@ int16_t beatFilter(int16_t sample) {
     yv[0] = yv[1]; 
     yv[1] = yv[2];
 
-    int32_t x2_minus_x0 =  ((int32_t)xv[2] - (int32_t)xv[0]) << (Qin - Qout);
+    int32_t x2_minus_x0 =  (uint32_t)((int16_t)xv[2] - (int16_t)xv[0]) << (Qin - Qout);
 
     int32_t yv2;
     yv2 = x2_minus_x0;
@@ -112,9 +111,10 @@ void PeckettIIRFixedPointSetup() {
   setup_sampler(SAMPLER_TIMER_COUNTER_FOR(5000 /* Hz */));
 }
 
-void PeckettIIRFixedPoint(uint16_t val, DigitalPin<BEAT_PIN> beat_pin) {
-    int16_t sample, value, envelope, beat;
-    static uint8_t i = 0;
+void PeckettIIRFixedPoint(uint8_t val, DigitalPin<BEAT_PIN> beat_pin) {
+    int8_t sample;
+    int16_t value, envelope, beat;
+    static uint8_t i = 200;
     
     // Read ADC and center so +-512
     sample = val-120;
@@ -126,7 +126,7 @@ void PeckettIIRFixedPoint(uint16_t val, DigitalPin<BEAT_PIN> beat_pin) {
     envelope = envelopeFilter(value);
 
     // Every 200 samples (25hz) filter the envelope 
-    if(i == 200) {
+    if(i == 0) {
       // Filter out repeating bass sounds 100 - 180bpm
       beat = beatFilter(envelope);
 //        Serial.println(beat);
@@ -139,8 +139,8 @@ void PeckettIIRFixedPoint(uint16_t val, DigitalPin<BEAT_PIN> beat_pin) {
       }
       
       //Reset sample counter
-      i = 0;
+      i = 200;
     } else {
-      i++;
+      i--;
     }
 }

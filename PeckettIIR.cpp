@@ -2,7 +2,7 @@
 #include "config.h"
 #include "sampler.h"
 
-#include "PeckettIIRFixedPoint.h"
+#include "PeckettIIR.h"
 
 static float thresh_f = 0.8f;
 
@@ -46,7 +46,7 @@ void PeckettIIRSetup() {
   setup_sampler(SAMPLER_TIMER_COUNTER_FOR(5000 /* Hz */));
 }
 
-void PeckettIIR(uint16_t val, DigitalPin<BEAT_PIN> beat_pin) {
+void PeckettIIR(uint8_t val, DigitalPin<BEAT_PIN> beat_pin) {
     float sample, value, envelope, beat;
     static uint8_t i = 0;
     
