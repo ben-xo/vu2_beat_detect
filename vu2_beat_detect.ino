@@ -37,7 +37,7 @@ void setup() {
 
   //setup_sampler((F_CPU / (1 * desired_sample_frequency) - 1));
 
-   Serial.begin(2000000);
+//   Serial.begin(2000000);
 }
 
 void loop() {
