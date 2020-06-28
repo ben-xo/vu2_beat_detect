@@ -8,16 +8,20 @@
 
 #include "PeckettIIR.h"
 
-static int16_t thresh_f = 35;
+static int16_t thresh_f = 250;
 
 // Our Global Sample Rate, 5000hz
 #define SAMPLEPERIODUS 200
 
 // 20 - 200hz Single Pole Bandpass IIR Filter
+// INPUT: 8-bit signed sample
+// OUTPUT: 16 bit signed filtered sample
 int16_t bassFilter(int16_t sample) {
-    const int32_t Q = 24; // sample is only 10 bit precision, so we scale up for a bit more precision
-    const int32_t alpha1 = (0.7960060012f * (1L << Q));
-    const int32_t alpha2 = (1.7903124146f * (1L << Q));
+    const int32_t Qin = 16; // sample was only sampled with 8 bit precision, so we have 24 bits to play with after the point - but need some headroom too.
+    const int32_t Qhalf = 8; // do some of the maths with headroom (thanks arithmetic) 
+    const int32_t Qout = 4; // return higher precision, and hope the output hasn't clipped.
+    const int32_t alpha1 = (-0.7960060012f * (1L << Qin));
+    const int32_t alpha2 = (1.7903124146f * (1L << Qin));
   
     static int16_t xv[3] = {0L,0L,0L};
     static int32_t yv[3] = {0L,0L,0L};
@@ -28,37 +32,32 @@ int16_t bassFilter(int16_t sample) {
     yv[0] = yv[1]; 
     yv[1] = yv[2]; 
 
-    int32_t x2_minus_x0 = ((int32_t)xv[2] - (int32_t)xv[0]) << Q;
+    int32_t x2_minus_x0 = ((int32_t)xv[2] - (int32_t)xv[0]) << (Qin - Qout);
     
-    yv[2] = x2_minus_x0
-            + ((-alpha1 * (yv[0]))>>Q) 
-            + (( alpha2 * (yv[1]))>>Q);
+    int32_t yv2;
+    yv2 = x2_minus_x0;
+    yv2 += ( alpha1 * (yv[0]) >> Qhalf );
+    yv2 += ( alpha2 * (yv[1]) >> Qhalf );
 
-    // manually convert from 32-bit fixed-point to 16-bit int
-    // (this generates assembler about 2x as fast as the right-rotate alone)
+    yv[2] = yv2 >> Qhalf;
 
-    return (yv[2] >> (Q)); // doesn't quite match Q, but we'll take the scaling!
-    
-    // return ret;
+    return (yv[2]); // this is being cast down to 16 bits, but there's enough headroom.
 }
 
 // 10hz Single Pole Lowpass IIR Filter
+// INPUT: 16-bit signed sample
+// OUTPUT: 16 bit signed filtered sample
 int16_t envelopeFilter(int16_t sample) { //10hz low pass
-    const int32_t Qinput = 4;
-    const int32_t Qprocess = 16;
-    const int32_t K = (1 << (Qprocess - 1)); // for rounding
-    const int32_t alpha3 = (0.9875119299f * (1L << Qprocess));
+    const int32_t Qin = 16; // sample was only sampled with 8 bit precision, so we have 24 bits to play with after the point - but need some headroom too.
+    const int32_t Qhalf = 8; // do some of the maths with headroom (thanks arithmetic) 
+    const int32_t Qout = 4; // return higher precision, and hope the output hasn't clipped.
+    const int32_t alpha3 = (0.9875119299f * (1L << Qin));
 
     static int16_t xv[2] = {0,0};
     static int32_t yv[2] = {0,0};
     xv[0] = xv[1];
 
-
-    // This should be roughly the same as "divide by 48" which is close to the 50 in the original
-    // (plus the difference in point precision from input to processing)
-    // but we're also doing the fixed point scaling at the same time, so in fact it's
-    // << 16 (scale) and then >> 6 (divide by 64) and then >> 4 (input was scaled differently)
-    // XXX: ... I've just done no scaling and it SEEMS TO BE OKAY
+    // XXX: PeckettIIR does some scaling here, I've just done no scaling and it SEEMS TO BE OKAY
     xv[1] = sample;
     
     yv[0] = yv[1];
@@ -66,7 +65,9 @@ int16_t envelopeFilter(int16_t sample) { //10hz low pass
     int32_t x0_plus_x1 =  ((int32_t)xv[0] + (int32_t)xv[1]);
     
     yv[1] = x0_plus_x1
-           + ((alpha3 * yv[0]) >> Qprocess);
+           + (alpha3 * (yv[0]) >> Qhalf);
+
+    yv[1] = yv[1] >> Qhalf;
 
     // manually convert from 32-bit fixed-point to 16-bit int
     // (this generates assembler about 2x as fast as the right-rotate alone)
@@ -74,10 +75,7 @@ int16_t envelopeFilter(int16_t sample) { //10hz low pass
     // XXX: this 11 was found by tuning. Need to derive it...
     // return yv[1] >> 11;
     
-    int16_t top =           yv[1] >> 2;
-    int16_t bot = (int16_t) yv[1];
-    int16_t ret = (top << 1) + (bot >> 15);
-    return top;
+    return yv[1]; // once again output will be 8/8 fixed point compared to the original input
 }
 
 // 1.7 - 3.0hz Single Pole Bandpass IIR Filter
@@ -120,7 +118,6 @@ void PeckettIIRFixedPointSetup() {
 
 void PeckettIIRFixedPoint(uint16_t val, DigitalPin<BEAT_PIN> beat_pin) {
     int16_t sample, value, envelope, beat;
-//    static boolean is_beat;
     static uint8_t i = 0;
     
     // Read ADC and center so +-512
@@ -136,7 +133,8 @@ void PeckettIIRFixedPoint(uint16_t val, DigitalPin<BEAT_PIN> beat_pin) {
     if(i == 200) {
       // Filter out repeating bass sounds 100 - 180bpm
       beat = beatFilter(envelope);
-//Serial.println(beat);
+//      Serial.println(beat);
+
 
       // If we are above threshold, light up LED
       if (beat > thresh_f) {

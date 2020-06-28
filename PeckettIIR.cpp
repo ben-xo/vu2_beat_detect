@@ -48,7 +48,6 @@ void PeckettIIRSetup() {
 
 void PeckettIIR(uint16_t val, DigitalPin<BEAT_PIN> beat_pin) {
     float sample, value, envelope, beat;
-//    static boolean is_beat;
     static uint8_t i = 0;
     
     // Read ADC and center so +-512
@@ -65,7 +64,7 @@ void PeckettIIR(uint16_t val, DigitalPin<BEAT_PIN> beat_pin) {
     if(i == 200) {
       // Filter out repeating bass sounds 100 - 180bpm
       beat = beatFilter(envelope);
-//Serial.println(beat);
+//      Serial.println(beat);
 
       // If we are above threshold, light up LED
       if (beat > thresh_f) {
