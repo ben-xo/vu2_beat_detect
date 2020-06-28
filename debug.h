@@ -1,3 +1,7 @@
+/*
+ * Copyright Ben XO https://github.com/ben-xo All rights reserved.
+ */
+
 
 #ifndef _DEBUG_H
 #define _DEBUG_H

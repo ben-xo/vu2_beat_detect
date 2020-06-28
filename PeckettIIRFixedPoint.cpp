@@ -1,10 +1,14 @@
+/*
+ * Copyright Ben XO https://github.com/ben-xo All rights reserved.
+ */
+ 
 #include <Arduino.h>
 #include "config.h"
 #include "sampler.h"
 
 #include "PeckettIIR.h"
 
-static int16_t thresh_f = 30;
+static int16_t thresh_f = 35;
 
 // Our Global Sample Rate, 5000hz
 #define SAMPLEPERIODUS 200
