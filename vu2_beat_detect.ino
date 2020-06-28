@@ -14,6 +14,7 @@
 #include "debug.h"
 
 #include "PeckettIIR.h"
+#include "PeckettIIRFixedPoint.h"
 
 DigitalPin<BUTTON_PIN> button_pin;
 
@@ -36,7 +37,7 @@ void setup() {
 
   //setup_sampler((F_CPU / (1 * desired_sample_frequency) - 1));
 
-//   Serial.begin(2000000);
+   Serial.begin(2000000);
 }
 
 void loop() {
@@ -53,8 +54,8 @@ void loop() {
 
 typedef void (*BeatDetectSetupList[])();
 typedef void (*BeatDetectList[])(uint16_t val, DigitalPin<BEAT_PIN> beat_pin);
-BeatDetectSetupList gBeatDetectAlgorithmSetup = { PeckettIIRSetup };
-BeatDetectList gBeatDetectAlgorithm = { PeckettIIR };
+BeatDetectSetupList gBeatDetectAlgorithmSetup = { PeckettIIRSetup, PeckettIIRFixedPointSetup };
+BeatDetectList gBeatDetectAlgorithm = { PeckettIIR, PeckettIIRFixedPoint };
 uint8_t current_mode = 0;
 
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
@@ -93,7 +94,7 @@ void algorithm_loop() {
 //        Serial.println(val);
         
         DEBUG_FRAME_RATE_HIGH();
-        gBeatDetectAlgorithm[mode]((uint16_t)(val<<2), beat_pin);
+        gBeatDetectAlgorithm[mode](val, beat_pin);
         DEBUG_FRAME_RATE_LOW();
     }
     

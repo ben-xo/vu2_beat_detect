@@ -2,15 +2,15 @@
 #include "config.h"
 #include "sampler.h"
 
-#include "PeckettIIR.h"
+#include "PeckettIIRFixedPoint.h"
 
-float thresh_f = 0.4f;
+static float thresh_f = 0.8f;
 
 // Our Global Sample Rate, 5000hz
 #define SAMPLEPERIODUS 200
 
 // 20 - 200hz Single Pole Bandpass IIR Filter
-float bassFilter(float sample) {
+static float bassFilter(float sample) {
     static float xv[3] = {0,0,0}, yv[3] = {0,0,0};
     xv[0] = xv[1]; xv[1] = xv[2]; 
     xv[2] = sample / 9.1f;
@@ -21,7 +21,7 @@ float bassFilter(float sample) {
 }
 
 // 10hz Single Pole Lowpass IIR Filter
-float envelopeFilter(float sample) { //10hz low pass
+static float envelopeFilter(float sample) { //10hz low pass
     static float xv[2] = {0,0}, yv[2] = {0,0};
     xv[0] = xv[1]; 
     xv[1] = sample / 160.f;
@@ -31,7 +31,7 @@ float envelopeFilter(float sample) { //10hz low pass
 }
 
 // 1.7 - 3.0hz Single Pole Bandpass IIR Filter
-float beatFilter(float sample) {
+static float beatFilter(float sample) {
     static float xv[3] = {0,0,0}, yv[3] = {0,0,0};
     xv[0] = xv[1]; xv[1] = xv[2]; 
     xv[2] = sample / 7.015f;
@@ -65,6 +65,7 @@ void PeckettIIR(uint16_t val, DigitalPin<BEAT_PIN> beat_pin) {
     if(i == 200) {
       // Filter out repeating bass sounds 100 - 180bpm
       beat = beatFilter(envelope);
+//Serial.println(beat);
 
       // If we are above threshold, light up LED
       if (beat > thresh_f) {
